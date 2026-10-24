@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your progress · RightDoor</title>
+<link rel="icon" href="/img/door.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="appbar">
+  <div class="wrap">
+    <a class="title" href="/" data-i18n="ui.jobsMatch"></a>
+    <div class="row"><span class="who" id="who"></span><div id="tools"></div></div>
+  </div>
+</header>
+<main id="main" class="wrap-narrow">
+  <h1 class="page-title" data-i18n="ui.trackTitle"></h1>
+  <form class="card row" id="find" style="align-items:flex-end">
+    <div style="flex:1 1 240px"><label class="field" for="code" data-i18n="ui.enterCode"></label>
+      <input id="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="RD-XXXX" style="text-transform:uppercase;letter-spacing:.06em;font-weight:700"></div>
+    <button class="btn btn-primary" type="submit" data-i18n="ui.find"></button>
+  </form>
+  <div id="view" aria-live="polite"></div>
+</main>
+<script src="/js/i18n-data.js"></script>
+<script src="/js/common.js"></script>
+<script>
+(function () {
+  document.getElementById('tools').innerHTML = RD.tools();
+  RD.bindTools();
+  const codeEl = document.getElementById('code');
+  const view = document.getElementById('view');
+  let data = null;
+  const fromPath = location.pathname.split('/')[3];
+  codeEl.value = new URLSearchParams(location.search).get('code') || fromPath || RD.store.get('rd_code') || '';
+
+  function render() {
+    RD.apply(document);
+    if (!data) return;
+    document.getElementById('who').textContent = data.name || '';
+    const order = ['new', 'review', 'approved', 'inwork'];
+    const doneN = { new: 1, processed: 1, approved: 3, inwork: 4 }[data.status] || 1;
+    const tl = order.map((s, i) => `<li class="${i < doneN ? 'done' : i === doneN ? 'current' : 'todo'}"><span class="dot">${i < doneN ? '✓' : i + 1}</span><span class="label">${RD.t('ui.st_' + s)}</span></li>`).join('');
+    const p = data.plan;
+    const done = data.steps.filter((s) => s.done).length;
+    view.innerHTML = `<div class="stack" style="margin-top:20px">
+      <div class="card"><ol class="timeline">${tl}</ol></div>
+      ${!p ? `<div class="note">${RD.t('ui.waitingWorker')}</div>` : `
+      ${p.note ? `<div class="card"><h2 style="font-size:1.125rem">${RD.t('ui.workerNote')}</h2><p style="margin:0">${RD.esc(p.note)}</p><p class="small muted" style="margin:6px 0 0">— ${RD.esc(p.by)}</p></div>` : ''}
+      <div class="card"><h2>${RD.t('ui.yourSteps')}</h2>
+        <div class="small muted">${RD.t('ui.stepsDone', { n: done, total: data.steps.length })}</div>
+        <div class="meter" aria-hidden="true"><span style="width:${data.steps.length ? (done / data.steps.length) * 100 : 0}%"></span></div>
+        <ul class="steps">${data.steps.map((s) => `<li><label class="step ${s.done ? 'is-done' : ''}"><input type="checkbox" data-i="${s.i}" ${s.done ? 'checked' : ''}><span class="txt">${RD.esc(RD.t('s.' + s.type, { x: s.label }))}</span></label></li>`).join('')}</ul>
+      </div>
+      <h2 style="margin-top:28px">${RD.t('ui.yourPlan')}</h2>
+      <div class="jobs">${p.jobs.map((j, i) => RD.jobHTML(j, i + 1)).join('')}</div>
+      ${p.support.length ? `<div class="support-list" style="margin-top:12px">${p.support.map((s) => `<div class="support"><h3>${RD.esc(s.name)}</h3><div class="small">${RD.esc(RD.t('svc.' + s.id))}</div></div>`).join('')}</div>` : ''}`}
+      <div class="row"><button type="button" class="btn btn-outline btn-small" onclick="window.print()">${RD.t('ui.print')}</button><a class="btn btn-ghost btn-small" href="/">${RD.t('ui.home')}</a></div>
+    </div>`;
+    view.querySelectorAll('.step input').forEach((cb) => cb.addEventListener('change', async () => {
+      try { data = await RD.api(`/api/track/${encodeURIComponent(data.code)}/steps/${cb.dataset.i}`, { body: { done: cb.checked } }); render(); view.querySelector(`.step input[data-i="${cb.dataset.i}"]`).focus(); }
+      catch { cb.checked = !cb.checked; }
+    }));
+  }
+  async function load(e) {
+    if (e) e.preventDefault();
+    const code = codeEl.value.trim().toUpperCase();
+    if (!code) return;
+    try {
+      data = await RD.api('/api/track/' + encodeURIComponent(code));
+      RD.store.set('rd_code', data.code);
+      if (!new URLSearchParams(location.search).get('lang') && !RD.store.get('rd_lang_set') && data.lang !== RD.lang) { RD.setLang(data.lang); }
+      render();
+    } catch (err) { data = null; view.innerHTML = `<div class="alert" role="alert" style="margin-top:16px">${RD.t(err.status === 404 ? 'ui.codeNotFound' : 'ui.error')}</div>`; }
+  }
+  document.getElementById('find').addEventListener('submit', load);
+  document.addEventListener('rd:lang', render);
+  document.querySelectorAll('.lang-select').forEach((s) => s.addEventListener('change', () => RD.store.set('rd_lang_set', '1')));
+  RD.apply(document);
+  if (codeEl.value) load();
+})();
+</script>
+</body>
+</html>

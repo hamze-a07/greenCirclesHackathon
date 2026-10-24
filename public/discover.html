@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jobs Match · RightDoor</title>
+<link rel="icon" href="/img/door.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="appbar">
+  <div class="wrap">
+    <a class="title" href="/" data-i18n="ui.jobsMatch"></a>
+    <div class="row"><span class="who" id="who"></span><div id="tools"></div></div>
+  </div>
+</header>
+
+<main id="main" class="wrap-narrow">
+  <h1 class="page-title" data-i18n="ui.discoverTitle"></h1>
+  <p class="muted" data-i18n="ui.discoverSub"></p>
+
+  <form class="card" id="form" novalidate>
+    <div class="group">
+      <label class="field" for="name" data-i18n="ui.yourName"></label>
+      <input id="name" type="text" autocomplete="given-name" style="max-width:360px">
+    </div>
+    <fieldset class="group"><legend data-i18n="ui.iEnjoy"></legend><div class="chips" id="enjoy"></div></fieldset>
+    <div class="group">
+      <h2><label for="done" data-i18n="ui.whatIDone"></label></h2>
+      <textarea id="done" data-i18n-ph="ui.whatIDonePh"></textarea>
+    </div>
+    <fieldset class="group"><legend data-i18n="q.q3"></legend><div class="chips" id="lim"></div></fieldset>
+    <fieldset class="group"><legend data-i18n="ui.workThatIs"></legend><div class="chips" id="prefs"></div></fieldset>
+    <div class="actions">
+      <button type="submit" class="btn btn-primary" data-i18n="ui.findFields"></button>
+      <button type="button" class="link-btn" id="skip" data-i18n="ui.skipAsk"></button>
+    </div>
+    <p class="small muted" style="margin:18px 0 0" data-i18n="ui.privacy"></p>
+  </form>
+  <p style="margin-top:18px"><a href="/app/check-in" data-i18n="ui.stepByStep"></a></p>
+  <div id="out"></div>
+</main>
+
+<script src="/js/i18n-data.js"></script>
+<script src="/js/common.js"></script>
+<script>
+(function () {
+  const Q = Object.fromEntries(RD.I.QUESTIONS.map((q) => [q.id, q]));
+  const state = { enjoy: new Set(), lim: new Set(), prefs: new Set() };
+  const groups = { enjoy: { opts: Q.enjoy.opts, key: 'opt.enjoy.' }, lim: { opts: Q.lim.opts, key: 'opt.lim.' }, prefs: { opts: RD.I.PREFS, key: 'opt.pref.' } };
+  let last = null;
+
+  document.getElementById('tools').innerHTML = RD.tools();
+  RD.bindTools();
+
+  function chips() {
+    for (const [id, g] of Object.entries(groups)) {
+      document.getElementById(id).innerHTML = g.opts.map((o) => `<button type="button" class="chip" data-g="${id}" data-v="${o}" aria-pressed="${state[id].has(o)}">${RD.icon.tick}${RD.esc(RD.t(g.key + o))}</button>`).join('');
+    }
+  }
+  document.getElementById('form').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const set = state[b.dataset.g], v = b.dataset.v;
+    if (b.dataset.g === 'lim' && v === 'private') { set.clear(); set.add(v); }
+    else { if (b.dataset.g === 'lim') set.delete('private'); set.has(v) ? set.delete(v) : set.add(v); }
+    document.querySelectorAll(`.chip[data-g="${b.dataset.g}"]`).forEach((c) => c.setAttribute('aria-pressed', String(set.has(c.dataset.v))));
+  });
+  const nameEl = document.getElementById('name');
+  nameEl.addEventListener('input', () => { document.getElementById('who').textContent = nameEl.value.trim(); });
+
+  function answers() {
+    return { enjoy: [...state.enjoy], lim: [...state.lim], prefs: [...state.prefs], freeText: document.getElementById('done').value.trim() };
+  }
+  async function find(e) {
+    if (e) e.preventDefault();
+    const out = document.getElementById('out');
+    try {
+      last = await RD.api('/api/match', { body: { answers: answers(), lang: RD.lang } });
+      RD.renderResults(out, last, { answers: answers(), name: nameEl.value.trim(), onSent: (o) => { last.code = o.code; } });
+    } catch { out.innerHTML = `<div class="alert" role="alert" style="margin-top:20px">${RD.t('ui.error')}</div>`; }
+  }
+  document.getElementById('form').addEventListener('submit', find);
+
+  function skip() {
+    last = 'skip';
+    const out = document.getElementById('out');
+    RD.loadMeta().then((meta) => {
+      out.innerHTML = `<section class="results stack"><div class="card"><h2>${RD.t('ui.skipTitle')}</h2><p>${RD.esc(RD.t('ui.skipText', { number: meta.textNumber }))}</p></div><div class="card" id="send-panel"></div></section>`;
+      RD.renderSend(out.querySelector('#send-panel'), { answers: answers(), name: nameEl.value.trim(), channel: 'skip', onSent: (o) => { last = { code: o.code, fields: [], jobs: [], support: [] }; } });
+      out.querySelector('#s-name').focus();
+    });
+  }
+  document.getElementById('skip').addEventListener('click', skip);
+
+  function render() {
+    RD.apply(document); chips();
+    if (last === 'skip') skip(); else if (last) RD.renderResults(document.getElementById('out'), last, { answers: answers(), name: nameEl.value.trim(), onSent: (o) => { last.code = o.code; } });
+  }
+  document.addEventListener('rd:lang', render);
+  render();
+})();
+</script>
+</body>
+</html>

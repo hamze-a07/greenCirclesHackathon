@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Printable check-in · RightDoor</title>
+<link rel="icon" href="/img/door.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar no-print"><div class="wrap"><a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span>RightDoor</a><div id="tools"></div></div></header>
+<div class="print-bar no-print"><button class="btn btn-primary" type="button" onclick="window.print()" data-i18n="ui.print"></button></div>
+<main class="print-sheet" id="sheet"></main>
+<script src="/js/i18n-data.js"></script>
+<script src="/js/common.js"></script>
+<script>
+(function () {
+  document.getElementById('tools').innerHTML = RD.tools();
+  RD.bindTools();
+  async function render() {
+    RD.apply(document);
+    const meta = await RD.loadMeta().catch(() => ({ textNumber: '', phoneLine: '' }));
+    const qs = RD.I.QUESTIONS.map((q) => `<section class="print-q"><h2>${q.n}. ${RD.esc(RD.t('q.q' + q.n))}</h2>
+      <div class="print-opts">${q.opts.map((o) => `<span>${RD.esc(RD.t('opt.' + q.id + '.' + o))}</span>`).join('')}</div>
+      ${q.free ? `<p style="margin:10px 0 0">${RD.esc(RD.t('q.q2more'))}</p><div class="write-line"></div><div class="write-line"></div>` : ''}</section>`).join('');
+    document.getElementById('sheet').innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
+        <div><h1>${RD.t('ui.printTitle')}</h1><p>${RD.t('ui.printIntro')}</p></div>
+        <img src="/img/door.svg" alt="" width="56" height="56">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px"><div>${RD.t('ui.printName')}<div class="write-line"></div></div><div>${RD.t('ui.printPhone')}<div class="write-line"></div></div></div>
+      ${qs}
+      <section class="print-q"><p><label style="display:flex;gap:10px"><span style="font-size:1.4em">☐</span><span>${RD.t('ui.consent')}</span></label></p>
+      <p class="small">${RD.esc(RD.t('ui.textLine', { number: meta.textNumber }))} · ${RD.esc(RD.t('ui.callLine', { number: meta.phoneLine }))}</p></section>
+      <section class="print-q" style="border:1px solid #000;padding:10px 14px;margin-top:22px" dir="ltr"><b>${RD.t('ui.printCouncil')}</b> · Ref: ________ · Staff: ________ · Date: ________ · Entered in RightDoor ☐</section>`;
+  }
+  document.addEventListener('rd:lang', render);
+  render();
+})();
+</script>
+</body>
+</html>

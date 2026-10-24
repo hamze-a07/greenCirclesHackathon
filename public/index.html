@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RightDoor · Find work that fits</title>
+<meta name="description" content="Helping Rochdale residents with health conditions or disabilities find the right support and the right job, with or without a computer.">
+<link rel="icon" href="/img/door.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Source+Serif+4:wght@600;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span>RightDoor</a>
+    <div id="tools"></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero wrap">
+    <h1 data-i18n="ui.landingTitle"></h1>
+    <p class="lead" data-i18n="ui.landingSub"></p>
+    <div class="row">
+      <a class="btn btn-primary" href="/app/discover" data-i18n="ui.lookingForWork"></a>
+      <a class="btn btn-outline" href="/staff" data-i18n="ui.councilWorker"></a>
+    </div>
+    <p style="margin-top:18px"><a href="/app/track" data-i18n="ui.checkProgress"></a></p>
+  </section>
+
+  <section class="wrap" aria-labelledby="how-title">
+    <h2 class="section-title" id="how-title" data-i18n="ui.howItWorks"></h2>
+    <ol class="how" style="list-style:none;padding:0;margin:0">
+      <li class="how-card"><div class="num">1</div><div data-i18n="ui.how1"></div></li>
+      <li class="how-card"><div class="num">2</div><div data-i18n="ui.how2"></div></li>
+      <li class="how-card"><div class="num">3</div><div data-i18n="ui.how3"></div></li>
+    </ol>
+  </section>
+
+  <section class="ways" aria-labelledby="ways-title">
+    <div class="wrap">
+      <h2 id="ways-title" data-i18n="ui.waysIn"></h2>
+      <p class="muted" data-i18n="ui.waysInSub"></p>
+      <div class="ways-grid">
+        <div class="way"><h3 data-i18n="ui.wayHelper"></h3><p data-i18n="ui.wayHelperText"></p></div>
+        <div class="way"><h3 data-i18n="ui.wayFit"></h3><p data-i18n="ui.wayFitText"></p></div>
+        <div class="way"><h3 data-i18n="ui.wayNoComputer"></h3><p data-i18n="ui.wayNoComputerText"></p></div>
+      </div>
+      <div class="lines">
+        <span class="line-pill" id="sms-pill"></span>
+        <span class="line-pill" id="call-pill"></span>
+        <a class="line-pill" href="/print/form" id="print-pill" style="text-decoration:none;color:inherit"></a>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="site"><div class="wrap">RightDoor · Team Rochdale · Green Circles AI Hackathon prototype. Jobs shown are sample data.</div></footer>
+
+<script src="/js/i18n-data.js"></script>
+<script src="/js/common.js"></script>
+<script>
+(async function () {
+  document.getElementById('tools').innerHTML = RD.tools();
+  RD.bindTools();
+  const meta = await RD.loadMeta().catch(() => ({ textNumber: '07700 900123', phoneLine: '0161 496 0123' }));
+  function lines() {
+    document.getElementById('sms-pill').innerHTML = RD.icon.sms + RD.esc(RD.t('ui.textLine', { number: meta.textNumber }));
+    document.getElementById('call-pill').innerHTML = RD.icon.phone + RD.esc(RD.t('ui.callLine', { number: meta.phoneLine }));
+    document.getElementById('print-pill').innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>' + RD.esc(RD.t('ui.printTitle'));
+  }
+  RD.apply(document); lines();
+  document.addEventListener('rd:lang', lines);
+})();
+</script>
+</body>
+</html>

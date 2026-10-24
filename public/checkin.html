@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-in · RightDoor</title>
+<link rel="icon" href="/img/door.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="theme-blue">
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-dot" aria-hidden="true" style="background:var(--blue)"></span>RightDoor</a>
+    <div id="tools"></div>
+  </div>
+</header>
+<main id="main" class="wrap">
+  <div id="screen"></div>
+  <div id="out" class="wrap-narrow" style="padding:0"></div>
+</main>
+
+<script src="/js/i18n-data.js"></script>
+<script src="/js/common.js"></script>
+<script>
+(function () {
+  const QS = RD.I.QUESTIONS;
+  const TOTAL = QS.length;
+  const ans = { freeText: '' };
+  let step = 0; // 0 = intro, 1..10 = questions, 11 = results
+  let result = null;
+  const screen = document.getElementById('screen');
+  const out = document.getElementById('out');
+
+  document.getElementById('tools').innerHTML = RD.tools();
+  RD.bindTools();
+
+  const selected = (q) => (q.multi ? (ans[q.id] || []) : (ans[q.id] ? [ans[q.id]] : []));
+
+  function intro() {
+    screen.innerHTML = `<div class="diag"><div class="diag-head">Right Door</div><div class="diag-body">
+      <h1 tabindex="-1">${RD.t('ui.startTitle')}</h1>
+      <p style="font-size:1.125rem">${RD.t('ui.startText')}</p>
+      <p class="muted">${RD.t('ui.privacy')}</p>
+      <div class="diag-foot">
+        <a class="btn btn-back" href="/app/discover">${RD.t('ui.back')}</a>
+        <button type="button" class="read-aloud" id="read">${RD.icon.speaker}<span>${RD.t('ui.readAloud')}</span></button>
+        <button type="button" class="btn btn-blue" id="next">${RD.t('ui.start')}</button>
+      </div></div></div>
+      ${howSide()}`;
+    document.getElementById('next').onclick = () => go(1);
+    bindRead(() => RD.t('ui.startTitle') + '. ' + RD.t('ui.startText'));
+  }
+  function howSide() {
+    return `<div class="how-side"><h2 style="font-size:1.25rem">${RD.t('ui.howItWorks')}</h2>
+      <ol style="padding-inline-start:1.2em;margin:0"><li>${RD.t('ui.how1')}</li><li>${RD.t('ui.how2')}</li><li>${RD.t('ui.how3')}</li></ol>
+      <p style="margin-top:12px">${RD.t('ui.optional')}</p></div>`;
+  }
+
+  function question() {
+    const q = QS[step - 1];
+    const sel = selected(q);
+    const role = q.multi ? 'checkbox' : 'radio';
+    screen.innerHTML = `<div class="diag"><div class="diag-head"><span>Right Door</span><span aria-hidden="true">•</span><span>${RD.t('ui.questionOf', { n: step, total: TOTAL })}</span></div>
+      <div class="diag-body">
+        <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${TOTAL}" aria-valuenow="${step}" aria-label="${RD.esc(RD.t('ui.questionOf', { n: step, total: TOTAL }))}"><span style="width:${(step / TOTAL) * 100}%"></span></div>
+        <h1 id="qh" tabindex="-1">${RD.esc(RD.t('q.q' + q.n))}</h1>
+        <p class="hint">${RD.t(q.multi ? 'ui.chooseAny' : 'ui.chooseOne')} ${RD.t('ui.optional')}</p>
+        <div class="opts" role="${q.multi ? 'group' : 'radiogroup'}" aria-labelledby="qh">
+          ${q.opts.map((o) => `<button type="button" class="opt" role="${role}" aria-checked="${sel.includes(o)}" data-v="${o}">${RD.icon.box}<span>${RD.esc(RD.t('opt.' + q.id + '.' + o))}</span></button>`).join('')}
+        </div>
+        ${q.free ? `<label class="field" for="free" style="margin-top:18px">${RD.t('q.q2more')}</label><textarea id="free" placeholder="${RD.esc(RD.t('ui.whatIDonePh'))}">${RD.esc(ans.freeText)}</textarea>` : ''}
+        <div class="diag-foot">
+          <button type="button" class="btn btn-back" id="back">${RD.t('ui.back')}</button>
+          <button type="button" class="read-aloud" id="read">${RD.icon.speaker}<span>${RD.t('ui.readAloud')}</span></button>
+          <button type="button" class="btn btn-blue" id="next">${RD.t(step === TOTAL ? 'ui.seeResults' : 'ui.next')}</button>
+        </div>
+      </div></div>${howSide()}`;
+    screen.querySelectorAll('.opt').forEach((b) => b.addEventListener('click', () => toggle(q, b.dataset.v)));
+    const free = document.getElementById('free');
+    if (free) free.addEventListener('input', () => { ans.freeText = free.value; });
+    document.getElementById('back').onclick = () => go(step - 1);
+    document.getElementById('next').onclick = () => go(step + 1);
+    bindRead(() => RD.t('q.q' + q.n) + '. ' + q.opts.map((o) => RD.t('opt.' + q.id + '.' + o)).join('. '));
+  }
+
+  function toggle(q, v) {
+    if (q.multi) {
+      let list = ans[q.id] || [];
+      if (v === 'private' || v === 'none') list = list.includes(v) ? [] : [v];
+      else { list = list.filter((x) => x !== 'private' && x !== 'none'); list = list.includes(v) ? list.filter((x) => x !== v) : [...list, v]; }
+      ans[q.id] = list;
+    } else ans[q.id] = ans[q.id] === v ? '' : v;
+    const sel = selected(q);
+    screen.querySelectorAll('.opt').forEach((b) => b.setAttribute('aria-checked', String(sel.includes(b.dataset.v))));
+  }
+
+  function bindRead(textFn) {
+    const btn = document.getElementById('read');
+    const label = btn.querySelector('span');
+    btn.onclick = () => {
+      if (RD.speaking) { RD.stopSpeak(); label.textContent = RD.t('ui.readAloud'); return; }
+      if (RD.speak(textFn(), () => { label.textContent = RD.t('ui.readAloud'); })) label.textContent = RD.t('ui.stop');
+    };
+  }
+
+  async function results() {
+    screen.innerHTML = '';
+    out.innerHTML = `<h1 class="page-title" tabindex="-1" id="rh">${RD.t('ui.fieldsTitle')}</h1><div id="res"></div>
+      <p style="margin-top:20px"><button type="button" class="link-btn" id="again">${RD.t('ui.startAgain')}</button></p>`;
+    document.getElementById('again').onclick = () => { for (const k of Object.keys(ans)) delete ans[k]; ans.freeText = ''; result = null; go(0); };
+    try {
+      if (!result) result = await RD.api('/api/match', { body: { answers: ans, lang: RD.lang } });
+      RD.renderResults(document.getElementById('res'), result, { answers: ans, onSent: (o) => { result.code = o.code; } });
+      const h = out.querySelector('.results h2'); if (h && h.textContent === RD.t('ui.fieldsTitle')) h.remove();
+      document.getElementById('rh').focus();
+    } catch { document.getElementById('res').innerHTML = `<div class="alert" role="alert">${RD.t('ui.error')}</div>`; }
+  }
+
+  function render() {
+    RD.apply(document);
+    out.innerHTML = '';
+    if (step === 0) intro(); else if (step <= TOTAL) question(); else results();
+  }
+  function go(n) {
+    RD.stopSpeak();
+    if (n < 0) { location.href = '/app/discover'; return; }
+    step = n;
+    if (step <= TOTAL) result = null;
+    render();
+    window.scrollTo({ top: 0 });
+    const h = document.querySelector('#qh, .diag h1');
+    if (h) h.focus();
+  }
+  document.addEventListener('rd:lang', render);
+  render();
+})();
+</script>
+</body>
+</html>
