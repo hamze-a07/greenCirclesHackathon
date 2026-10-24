@@ -1,0 +1,10 @@
+{
+  "name": "rightdoor",
+  "version": "1.0.0",
+  "description": "RightDoor: helping Rochdale residents with health conditions or disabilities find the right support and the right job, with or without a computer.",
+  "private": true,
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "reset": "node -e \"require('fs').rmSync('data/db.json',{force:true})\"" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
